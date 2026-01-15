@@ -36,22 +36,26 @@ def table_exists(name: str) -> bool:
 
 
 def query_upstream(name: str, max_depth: int = 20) -> List[object]:
+    depth = max(1, min(int(max_depth), 20))
     query = (
-        "MATCH path = (t:Table {name: $name})-[:DEPENDS_ON*..$depth]->(ancestor) "
+        "MATCH path = (t:Table {name: $name})"
+        f"-[:DEPENDS_ON*..{depth}]->(ancestor) "
         "RETURN path"
     )
     with get_driver().session() as session:
-        result = session.run(query, name=name, depth=max_depth)
+        result = session.run(query, name=name)
         return [record["path"] for record in result]
 
 
 def query_downstream(name: str, max_depth: int = 20) -> List[object]:
+    depth = max(1, min(int(max_depth), 20))
     query = (
-        "MATCH path = (t:Table {name: $name})<-[:DEPENDS_ON*..$depth]-(descendant) "
+        "MATCH path = (t:Table {name: $name})"
+        f"<-[:DEPENDS_ON*..{depth}]-(descendant) "
         "RETURN path"
     )
     with get_driver().session() as session:
-        result = session.run(query, name=name, depth=max_depth)
+        result = session.run(query, name=name)
         return [record["path"] for record in result]
 
 
