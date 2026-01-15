@@ -40,10 +40,6 @@ python graph/seed.py
 uvicorn app.web_app:app --reload --port 8000
 ```
 Then open http://localhost:8000.
-You can also run everything with:
-```bash
-./run_app.sh
-```
 
 ## Sample Cypher queries
 List tables:
