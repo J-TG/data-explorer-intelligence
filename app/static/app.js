@@ -18,6 +18,18 @@ const typeColors = d3
 let cy = null;
 let currentMode = "both";
 
+const dagreLayout = {
+  name: "dagre",
+  rankDir: "LR",
+  ranker: "longest-path",
+  nodeSep: 50,
+  edgeSep: 10,
+  rankSep: 140,
+  animate: false,
+  fit: true,
+  padding: 40,
+};
+
 function setLoadingState(isLoading) {
   document.body.classList.toggle("loading", isLoading);
 }
@@ -129,7 +141,7 @@ function updateGraph(name, mode, depth) {
         cy = cytoscape({
           container: document.getElementById("cy"),
           elements,
-          layout: { name: "cose", animate: false },
+          layout: dagreLayout,
           style: [
             {
               selector: "node",
@@ -164,6 +176,30 @@ function updateGraph(name, mode, depth) {
                 "font-weight": "bold",
               },
             },
+            {
+              selector: ".upstream",
+              style: {
+                "border-color": "#1d4ed8",
+                "border-width": 2,
+                "line-color": "#1d4ed8",
+                "target-arrow-color": "#1d4ed8",
+              },
+            },
+            {
+              selector: ".downstream",
+              style: {
+                "border-color": "#0f766e",
+                "border-width": 2,
+                "line-color": "#0f766e",
+                "target-arrow-color": "#0f766e",
+              },
+            },
+            {
+              selector: ".dim",
+              style: {
+                opacity: 0.3,
+              },
+            },
           ],
         });
 
@@ -171,16 +207,19 @@ function updateGraph(name, mode, depth) {
           const nodeId = event.target.id();
           if (nodeId && nodeId !== tableSelect.value) {
             tableSelect.value = nodeId;
-            refresh();
+            activeSelection.textContent = nodeId;
+            updateImmediate(nodeId);
           }
+          applyLineageHighlight(nodeId);
         });
       } else {
         cy.elements().remove();
         cy.add(elements.nodes);
         cy.add(elements.edges);
-        cy.layout({ name: "cose", animate: false }).run();
+        cy.layout(dagreLayout).run();
       }
 
+      resetLineageHighlighting();
       cy.nodes().removeClass("active");
       cy.getElementById(data.active).addClass("active");
       setLoadingState(false);
@@ -200,6 +239,38 @@ function refresh() {
   const depth = Number(depthInput.value);
   depthValue.textContent = depth;
   updateGraph(name, currentMode, depth).then(() => updateImmediate(name));
+}
+
+function resetLineageHighlighting() {
+  if (!cy) {
+    return;
+  }
+  cy.elements().removeClass("upstream downstream dim");
+}
+
+function applyLineageHighlight(nodeId) {
+  if (!cy) {
+    return;
+  }
+  const node = cy.getElementById(nodeId);
+  if (!node || node.empty()) {
+    return;
+  }
+  const upstream = node.predecessors();
+  const downstream = node.successors();
+  const related = upstream.union(downstream).union(node);
+
+  cy.elements().removeClass("upstream downstream dim");
+  cy.nodes().removeClass("active");
+  node.addClass("active");
+  upstream.addClass("upstream");
+  downstream.addClass("downstream");
+  cy.elements().difference(related).addClass("dim");
+
+  cy.animate({
+    center: { eles: node },
+    duration: 300,
+  });
 }
 
 function setupModeListeners() {
