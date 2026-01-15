@@ -64,8 +64,7 @@ rendered_html = sigma_template.replace("{{GRAPH_DATA}}", json.dumps(graph_data))
     "{{ACTIVE_SELECTION}}", json.dumps(active_node)
 )
 
-component_key = f"sigma_{active_node}_{mode_key}_{max_depth}"
-clicked_node = st.components.v1.html(rendered_html, height=650, scrolling=False, key=component_key)
+clicked_node = st.components.v1.html(rendered_html, height=650, scrolling=False)
 
 if clicked_node and clicked_node != st.session_state["active_node"]:
     st.session_state["active_node"] = clicked_node
