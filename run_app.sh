@@ -6,6 +6,6 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-pip install -r requirements.txt
-python graph/seed.py
-uvicorn app.web_app:app --reload --port 8000
+pip3 install -r requirements.txt
+PYTHONPATH=. python3 graph/seed.py
+PYTHONPATH=. python3 -m uvicorn app.web_app:app --reload --port 8000
