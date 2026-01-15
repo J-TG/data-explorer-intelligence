@@ -1,4 +1,4 @@
-.PHONY: help install seed run setup run-dev check-env
+.PHONY: help install seed run setup run-dev check-env stop
 
 help:
 	@echo "Targets:"
@@ -21,8 +21,20 @@ seed:
 	PYTHONPATH=. python3 graph/seed.py
 
 run:
+	@$(MAKE) stop
 	PYTHONPATH=. python3 -m uvicorn app.web_app:app --reload --port 8000
 
 setup: install seed
 
 run-dev: check-env setup run
+
+stop:
+	@if command -v lsof >/dev/null 2>&1; then \
+		pid=$$(lsof -ti tcp:8000); \
+		if [ -n "$$pid" ]; then \
+			echo "Stopping process on port 8000 ($$pid)"; \
+			kill $$pid; \
+		fi; \
+	else \
+		echo "lsof not found; skipping port 8000 shutdown check"; \
+	fi
