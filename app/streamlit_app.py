@@ -30,8 +30,11 @@ if not table_names:
 
 if "active_node" not in st.session_state:
     st.session_state["active_node"] = table_names[0]
+elif st.session_state["active_node"] not in table_names:
+    st.session_state["active_node"] = table_names[0]
 
-selected = st.sidebar.selectbox("Select a table", table_names, index=table_names.index(st.session_state["active_node"]))
+selected_index = table_names.index(st.session_state["active_node"])
+selected = st.sidebar.selectbox("Select a table", table_names, index=selected_index)
 if selected != st.session_state["active_node"]:
     st.session_state["active_node"] = selected
 
