@@ -1,4 +1,6 @@
-.PHONY: help install seed run setup run-dev check-env stop
+.PHONY: help install seed run setup run-dev check-env stop kill-port
+
+PORT ?= 8000
 
 help:
 	@echo "Targets:"
@@ -21,20 +23,21 @@ seed:
 	PYTHONPATH=. python3 graph/seed.py
 
 run:
-	@$(MAKE) stop
-	PYTHONPATH=. python3 -m uvicorn app.web_app:app --reload --port 8000
+	@$(MAKE) kill-port
+	@echo "🚀 Starting FastAPI on port $(PORT)..."
+	PYTHONPATH=. python3 -m uvicorn app.web_app:app --reload --port $(PORT)
 
 setup: install seed
 
 run-dev: check-env setup run
 
-stop:
+kill-port:
+	@echo "🔍 Checking for processes on port $(PORT)..."
 	@if command -v lsof >/dev/null 2>&1; then \
-		pid=$$(lsof -ti tcp:8000); \
-		if [ -n "$$pid" ]; then \
-			echo "Stopping process on port 8000 ($$pid)"; \
-			kill $$pid; \
-		fi; \
+		lsof -ti tcp:$(PORT) | xargs kill -9 2>/dev/null || true; \
 	else \
-		echo "lsof not found; skipping port 8000 shutdown check"; \
+		echo "lsof not found; skipping port $(PORT) shutdown check"; \
 	fi
+	@echo "✅ Port $(PORT) is free"
+
+stop: kill-port
