@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      html, body, #sigma-container {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #111827;
+      }
+      #sigma-container {
+        border-radius: 6px;
+      }
+    </style>
+    <script src="https://unpkg.com/graphology@0.25.4/dist/graphology.umd.min.js"></script>
+    <script src="https://unpkg.com/graphology-layout-forceatlas2@0.10.1/build/graphology-layout-forceatlas2.min.js"></script>
+    <script src="https://unpkg.com/sigma@2.4.0/build/sigma.min.js"></script>
+  </head>
+  <body>
+    <div id="sigma-container"></div>
+    <script>
+      const graphData = {{GRAPH_DATA}};
+      const activeSelection = {{ACTIVE_SELECTION}};
+
+      const colorMap = {
+        RAW: "#95a5a6",
+        TRANSFORM: "#f39c12",
+        FINAL: "#1abc9c",
+      };
+
+      const shapeMap = {
+        RAW: "circle",
+        TRANSFORM: "square",
+        FINAL: "diamond",
+      };
+
+      const Graph = graphology.Graph;
+      const graph = new Graph({ type: "directed" });
+
+      graphData.nodes.forEach((node, index) => {
+        graph.addNode(node.id, {
+          label: node.label,
+          type: shapeMap[node.type] || "circle",
+          color: colorMap[node.type] || "#9ca3af",
+          size: activeSelection === node.id ? 14 : 9,
+          x: Math.cos(index) * 10,
+          y: Math.sin(index) * 10,
+        });
+      });
+
+      graphData.edges.forEach((edge) => {
+        if (!graph.hasEdge(edge.id)) {
+          graph.addEdge(edge.source, edge.target, { id: edge.id, size: 1, color: "#6b7280" });
+        }
+      });
+
+      graphologyLayoutForceatlas2.assign(graph, {
+        iterations: 200,
+        settings: {
+          gravity: 1,
+          scalingRatio: 2,
+          slowDown: 10,
+        },
+      });
+
+      const renderer = new sigma.Sigma(graph, document.getElementById("sigma-container"), {
+        renderEdgeLabels: false,
+        allowInvalidContainer: true,
+      });
+
+      let draggedNode = null;
+      let isDragging = false;
+
+      renderer.on("downNode", (event) => {
+        isDragging = true;
+        draggedNode = event.node;
+        graph.setNodeAttribute(draggedNode, "highlighted", true);
+      });
+
+      renderer.getMouseCaptor().on("mousemovebody", (event) => {
+        if (!isDragging || !draggedNode) {
+          return;
+        }
+        const pos = renderer.viewportToGraph(event);
+        graph.setNodeAttribute(draggedNode, "x", pos.x);
+        graph.setNodeAttribute(draggedNode, "y", pos.y);
+        event.preventSigmaDefault();
+        event.original.preventDefault();
+        event.original.stopPropagation();
+      });
+
+      renderer.getMouseCaptor().on("mouseup", () => {
+        if (draggedNode) {
+          graph.removeNodeAttribute(draggedNode, "highlighted");
+        }
+        isDragging = false;
+        draggedNode = null;
+      });
+
+      renderer.on("clickNode", (event) => {
+        const nodeId = event.node;
+        window.parent.postMessage(
+          {
+            isStreamlitMessage: true,
+            type: "STREAMLIT_SET_COMPONENT_VALUE",
+            value: nodeId,
+          },
+          "*"
+        );
+      });
+
+      window.addEventListener("message", (event) => {
+        if (!event.data || !event.data.type) {
+          return;
+        }
+        if (event.data.type === "STREAMLIT_UPDATE_SELECTION" && event.data.value) {
+          const next = event.data.value;
+          graph.forEachNode((node) => {
+            graph.setNodeAttribute(node, "size", node === next ? 14 : 9);
+          });
+          renderer.refresh();
+        }
+      });
+    </script>
+  </body>
+</html>
