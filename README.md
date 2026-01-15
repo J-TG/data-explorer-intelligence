@@ -1,7 +1,7 @@
 # Data Dependency Intelligence Platform — Deep Network MVP
 
 ## What it is
-A minimal, production-minded MVP to visualize bidirectional, recursive data lineage across raw → transform → final layers using Neo4j + Streamlit + Sigma.js.
+A minimal, production-minded MVP to visualize bidirectional, recursive data lineage across raw → transform → final layers using Neo4j + FastAPI + Cytoscape.js/D3.js (v2 UI).
 
 ## Why a graph
 Lineage questions are inherently graph problems: impact analysis, root-cause tracing, and change propagation require recursive traversal that scales beyond one-hop dependencies.
@@ -31,10 +31,11 @@ pip install -r requirements.txt
 python graph/seed.py
 ```
 
-### 5) Run the app
+### 5) Run the app (v2)
 ```bash
-streamlit run app/streamlit_app.py
+uvicorn app.web_app:app --reload --port 8000
 ```
+Then open http://localhost:8000.
 
 ## Sample Cypher queries
 List tables:
@@ -76,8 +77,9 @@ RETURN path;
 2. Create `.env` with Neo4j credentials.
 3. `pip install -r requirements.txt`
 4. `python graph/seed.py`
-5. `streamlit run app/streamlit_app.py`
+5. `uvicorn app.web_app:app --reload --port 8000`
+6. Open http://localhost:8000
 
 ## Assumptions
 - Neo4j 5.x is available and reachable via Bolt.
-- A modern browser is used for the Sigma.js visualization.
+- A modern browser is used for the Cytoscape.js/D3.js visualization.
