@@ -12,6 +12,7 @@ import streamlit as st
 from app import engine
 
 
+st.set_option("browser.gatherUsageStats", False)
 st.set_page_config(page_title="Data Dependency Intelligence Platform", layout="wide")
 
 st.title("Data Dependency Intelligence Platform — Deep Network MVP")
