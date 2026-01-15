@@ -27,17 +27,17 @@ cp .env.example .env
 
 ### 3) Install dependencies
 ```bash
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 ```
 
 ### 4) Seed the graph (idempotent)
 ```bash
-python graph/seed.py
+PYTHONPATH=. python3 graph/seed.py
 ```
 
 ### 5) Run the app (v2)
 ```bash
-uvicorn app.web_app:app --reload --port 8000
+PYTHONPATH=. python3 -m uvicorn app.web_app:app --reload --port 8000
 ```
 Then open http://localhost:8000.
 
@@ -79,9 +79,9 @@ RETURN path;
 ## Run Instructions
 1. Start Neo4j (Docker example above).
 2. Create `.env` with Neo4j credentials.
-3. `pip install -r requirements.txt`
-4. `python graph/seed.py`
-5. `uvicorn app.web_app:app --reload --port 8000`
+3. `pip3 install -r requirements.txt`
+4. `PYTHONPATH=. python3 graph/seed.py`
+5. `PYTHONPATH=. python3 -m uvicorn app.web_app:app --reload --port 8000`
 6. Open http://localhost:8000
 
 ## Assumptions
