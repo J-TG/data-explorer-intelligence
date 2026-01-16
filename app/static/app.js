@@ -9,6 +9,16 @@ const depthValue = document.getElementById("depth-value");
 const seedButton = document.getElementById("seed-button");
 const legendContainer = document.getElementById("type-legend");
 const statusMessage = document.getElementById("status-message");
+const scopeRadios = document.querySelectorAll('input[name="scope"]');
+const tableFilter = document.getElementById("table-filter");
+const focusTableList = document.getElementById("focus-table-list");
+const metricsToggle = document.getElementById("metrics-toggle");
+const metricsBody = document.getElementById("metrics-body");
+const metricsRows = document.getElementById("metrics-rows");
+const metricsSort = document.getElementById("metrics-sort");
+const selectedCount = document.getElementById("selected-count");
+const startingCount = document.getElementById("starting-count");
+const startingList = document.getElementById("starting-list");
 
 const typeColors = d3
   .scaleOrdinal()
@@ -17,6 +27,10 @@ const typeColors = d3
 
 let cy = null;
 let currentMode = "both";
+let currentScope = "focused";
+let graphData = null;
+let tableNames = [];
+const selectedTables = new Set();
 
 const dagreLayout = {
   name: "dagre",
@@ -200,6 +214,14 @@ function updateGraph(name, mode, depth) {
                 opacity: 0.3,
               },
             },
+            {
+              selector: ".selected",
+              style: {
+                "border-color": "#1d4ed8",
+                "border-width": 3,
+                "border-style": "double",
+              },
+            },
           ],
         });
 
@@ -222,6 +244,9 @@ function updateGraph(name, mode, depth) {
       resetLineageHighlighting();
       cy.nodes().removeClass("active");
       cy.getElementById(data.active).addClass("active");
+      applySelectedHighlights();
+      graphData = data.graph;
+      updateMetrics();
       setLoadingState(false);
     })
     .catch((error) => {
@@ -238,7 +263,11 @@ function refresh() {
   const name = tableSelect.value;
   const depth = Number(depthInput.value);
   depthValue.textContent = depth;
-  updateGraph(name, currentMode, depth).then(() => updateImmediate(name));
+  if (currentScope === "all") {
+    updateGraphAll().then(() => updateImmediate(name));
+  } else {
+    updateGraph(name, currentMode, depth).then(() => updateImmediate(name));
+  }
 }
 
 function resetLineageHighlighting() {
@@ -273,11 +302,37 @@ function applyLineageHighlight(nodeId) {
   });
 }
 
+function applySelectedHighlights() {
+  if (!cy) {
+    return;
+  }
+  cy.nodes().removeClass("selected");
+  selectedTables.forEach((name) => {
+    cy.getElementById(name).addClass("selected");
+  });
+}
+
 function setupModeListeners() {
   const radios = document.querySelectorAll('input[name="mode"]');
   radios.forEach((radio) => {
     radio.addEventListener("change", (event) => {
       currentMode = event.target.value;
+      refresh();
+    });
+  });
+}
+
+function setupScopeListeners() {
+  scopeRadios.forEach((radio) => {
+    radio.addEventListener("change", (event) => {
+      currentScope = event.target.value;
+      const disableControls = currentScope === "all";
+      document
+        .querySelectorAll('input[name="mode"]')
+        .forEach((input) => {
+          input.disabled = disableControls;
+        });
+      depthInput.disabled = disableControls;
       refresh();
     });
   });
@@ -306,6 +361,148 @@ function setupSeedButton() {
   });
 }
 
+function updateGraphAll() {
+  setLoadingState(true);
+  return fetch("/api/graph/all")
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Graph request failed");
+      }
+      return response.json();
+    })
+    .then((data) => {
+      setStatus("");
+      const nodes = data.graph.nodes;
+      const edges = data.graph.edges;
+
+      activeSelection.textContent = "ALL";
+      nodeCount.textContent = nodes.length;
+      edgeCount.textContent = edges.length;
+      buildLegend(nodes.map((node) => node.type || "UNKNOWN"));
+
+      const elements = {
+        nodes: nodes.map((node) => ({
+          data: {
+            id: node.id,
+            label: node.label,
+            type: node.type || "UNKNOWN",
+          },
+        })),
+        edges: edges.map((edge) => ({
+          data: {
+            id: edge.id,
+            source: edge.source,
+            target: edge.target,
+          },
+        })),
+      };
+
+      if (!cy) {
+        cy = cytoscape({
+          container: document.getElementById("cy"),
+          elements,
+          layout: dagreLayout,
+          style: [
+            {
+              selector: "node",
+              style: {
+                "background-color": (node) => typeColors(node.data("type")),
+                label: "data(label)",
+                color: "#0f172a",
+                "font-size": 11,
+                "text-valign": "center",
+                "text-halign": "center",
+                "text-wrap": "wrap",
+                "text-max-width": 90,
+                width: 45,
+                height: 45,
+              },
+            },
+            {
+              selector: "edge",
+              style: {
+                width: 2,
+                "line-color": "#94a3b8",
+                "target-arrow-color": "#94a3b8",
+                "target-arrow-shape": "triangle",
+                "curve-style": "bezier",
+              },
+            },
+            {
+              selector: ".active",
+              style: {
+                "background-color": "#1d4ed8",
+                color: "#ffffff",
+                "font-weight": "bold",
+              },
+            },
+            {
+              selector: ".upstream",
+              style: {
+                "border-color": "#1d4ed8",
+                "border-width": 2,
+                "line-color": "#1d4ed8",
+                "target-arrow-color": "#1d4ed8",
+              },
+            },
+            {
+              selector: ".downstream",
+              style: {
+                "border-color": "#0f766e",
+                "border-width": 2,
+                "line-color": "#0f766e",
+                "target-arrow-color": "#0f766e",
+              },
+            },
+            {
+              selector: ".dim",
+              style: {
+                opacity: 0.3,
+              },
+            },
+            {
+              selector: ".selected",
+              style: {
+                "border-color": "#1d4ed8",
+                "border-width": 3,
+                "border-style": "double",
+              },
+            },
+          ],
+        });
+
+        cy.on("tap", "node", (event) => {
+          const nodeId = event.target.id();
+          if (nodeId && nodeId !== tableSelect.value) {
+            tableSelect.value = nodeId;
+            activeSelection.textContent = nodeId;
+            updateImmediate(nodeId);
+          }
+          applyLineageHighlight(nodeId);
+        });
+      } else {
+        cy.elements().remove();
+        cy.add(elements.nodes);
+        cy.add(elements.edges);
+        cy.layout(dagreLayout).run();
+      }
+
+      resetLineageHighlighting();
+      applySelectedHighlights();
+      graphData = data.graph;
+      updateMetrics();
+      setLoadingState(false);
+    })
+    .catch((error) => {
+      setLoadingState(false);
+      setStatus(
+        "Unable to load data from Neo4j. Confirm the database is running and .env is configured.",
+        "error"
+      );
+      console.error("Graph update failed", error);
+    });
+}
+
 function fetchTables() {
   return fetch("/api/tables")
     .then((response) => {
@@ -317,6 +514,7 @@ function fetchTables() {
     .then((data) => {
       setStatus("");
       tableSelect.innerHTML = "";
+      tableNames = data.tables;
       data.tables.forEach((name, index) => {
         const option = document.createElement("option");
         option.value = name;
@@ -326,6 +524,7 @@ function fetchTables() {
           tableSelect.value = name;
         }
       });
+      renderFocusTableList();
       refresh();
     })
     .catch(() => {
@@ -336,10 +535,168 @@ function fetchTables() {
     });
 }
 
+function renderFocusTableList() {
+  const filterValue = tableFilter.value.trim().toLowerCase();
+  focusTableList.innerHTML = "";
+  tableNames
+    .filter((name) => name.toLowerCase().includes(filterValue))
+    .forEach((name) => {
+      const label = document.createElement("label");
+      label.className = "checkbox-item";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.value = name;
+      checkbox.checked = selectedTables.has(name);
+      checkbox.addEventListener("change", (event) => {
+        if (event.target.checked) {
+          selectedTables.add(name);
+        } else {
+          selectedTables.delete(name);
+        }
+        applySelectedHighlights();
+        updateMetrics();
+      });
+      const span = document.createElement("span");
+      span.textContent = name;
+      label.appendChild(checkbox);
+      label.appendChild(span);
+      focusTableList.appendChild(label);
+    });
+}
+
+function buildGraphIndex() {
+  const parentsByChild = new Map();
+  const childrenByParent = new Map();
+  if (!graphData) {
+    return { parentsByChild, childrenByParent };
+  }
+  graphData.nodes.forEach((node) => {
+    parentsByChild.set(node.id, new Set());
+    childrenByParent.set(node.id, new Set());
+  });
+  graphData.edges.forEach((edge) => {
+    if (!parentsByChild.has(edge.target)) {
+      parentsByChild.set(edge.target, new Set());
+    }
+    if (!childrenByParent.has(edge.source)) {
+      childrenByParent.set(edge.source, new Set());
+    }
+    parentsByChild.get(edge.target).add(edge.source);
+    childrenByParent.get(edge.source).add(edge.target);
+  });
+  return { parentsByChild, childrenByParent };
+}
+
+function traverseCount(start, adjacency) {
+  const visited = new Set();
+  const stack = [...(adjacency.get(start) || [])];
+  while (stack.length) {
+    const node = stack.pop();
+    if (visited.has(node)) {
+      continue;
+    }
+    visited.add(node);
+    const next = adjacency.get(node);
+    if (next) {
+      next.forEach((child) => stack.push(child));
+    }
+  }
+  return visited;
+}
+
+function updateMetrics() {
+  if (!graphData) {
+    return;
+  }
+  const { parentsByChild, childrenByParent } = buildGraphIndex();
+  const selected = Array.from(selectedTables);
+  selectedCount.textContent = selected.length;
+
+  const metrics = selected.map((name) => {
+    const upstream = traverseCount(name, parentsByChild);
+    const downstream = traverseCount(name, childrenByParent);
+    const immediateParents = parentsByChild.get(name) || new Set();
+    const immediateChildren = childrenByParent.get(name) || new Set();
+    const dParents = Array.from(immediateParents).filter((parent) =>
+      parent.toLowerCase().includes("d_")
+    );
+    const fParents = Array.from(immediateParents).filter((parent) =>
+      parent.toLowerCase().includes("f_")
+    );
+    const dfParents = dParents.length + fParents.length;
+    const priorityScore = downstream.size + immediateChildren.size + dfParents;
+    return {
+      name,
+      upstreamCount: upstream.size,
+      downstreamCount: downstream.size,
+      dParents: dParents.length,
+      fParents: fParents.length,
+      dfParents,
+      priorityScore,
+      immediateParents,
+    };
+  });
+
+  const selectedSet = new Set(selected);
+  const starting = metrics
+    .filter((metric) => {
+      const parents = metric.immediateParents || new Set();
+      const hasSelectedParent = Array.from(parents).some((parent) =>
+        selectedSet.has(parent)
+      );
+      return !hasSelectedParent;
+    })
+    .map((metric) => metric.name);
+
+  startingCount.textContent = starting.length;
+  renderList(startingList, starting);
+
+  const sortBy = metricsSort.value;
+  const sortValue = (metric) => {
+    if (sortBy === "downstream") {
+      return metric.downstreamCount;
+    }
+    if (sortBy === "upstream") {
+      return metric.upstreamCount;
+    }
+    if (sortBy === "df-parents") {
+      return metric.dfParents;
+    }
+    return metric.priorityScore;
+  };
+
+  metrics.sort((a, b) => sortValue(b) - sortValue(a));
+  metricsRows.innerHTML = "";
+  metrics.forEach((metric) => {
+    const row = document.createElement("div");
+    row.className = "metrics-row";
+    row.innerHTML = `
+      <span class="selected">${metric.name}</span>
+      <span class="metric-badge">${metric.priorityScore}</span>
+      <span>${metric.downstreamCount}</span>
+      <span>${metric.upstreamCount}</span>
+      <span>${metric.dParents}</span>
+      <span>${metric.fParents}</span>
+      <span>${metric.dfParents}</span>
+    `;
+    metricsRows.appendChild(row);
+  });
+}
+
+metricsToggle.addEventListener("click", () => {
+  const isCollapsed = metricsBody.classList.toggle("collapsed");
+  metricsToggle.textContent = isCollapsed ? "Expand" : "Collapse";
+});
+
+metricsSort.addEventListener("change", updateMetrics);
+
+tableFilter.addEventListener("input", renderFocusTableList);
+
 depthInput.addEventListener("input", refresh);
 
 tableSelect.addEventListener("change", refresh);
 
 setupModeListeners();
+setupScopeListeners();
 setupSeedButton();
 fetchTables();

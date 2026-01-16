@@ -124,3 +124,50 @@ def fetch_subgraph(name: str, mode: str, max_depth: int) -> Dict[str, List[Dict[
         downstream = query_downstream(name, max_depth)
         return paths_to_graph([*upstream, *downstream])
     raise ValueError(f"Unknown mode: {mode}")
+
+
+def query_full_graph() -> Dict[str, List[Dict[str, str]]]:
+    query = (
+        "MATCH (t:Table) "
+        "OPTIONAL MATCH (t)-[r:DEPENDS_ON]->(parent:Table) "
+        "RETURN t AS table, parent AS parent, r AS rel"
+    )
+    nodes: Dict[str, Dict[str, str]] = {}
+    edges: Dict[str, Dict[str, str]] = {}
+    with get_driver().session() as session:
+        result = session.run(query)
+        for record in result:
+            table = record.get("table")
+            parent = record.get("parent")
+            rel = record.get("rel")
+            if table:
+                table_name = table.get("name")
+                if table_name:
+                    nodes[table_name] = {
+                        "id": table_name,
+                        "label": table_name,
+                        "type": table.get("type", "UNKNOWN"),
+                    }
+            if parent:
+                parent_name = parent.get("name")
+                if parent_name:
+                    nodes[parent_name] = {
+                        "id": parent_name,
+                        "label": parent_name,
+                        "type": parent.get("type", "UNKNOWN"),
+                    }
+            if table and parent and rel:
+                table_name = table.get("name")
+                parent_name = parent.get("name")
+                if table_name and parent_name:
+                    edge_id = f"{parent_name}__DEPENDS_ON__{table_name}"
+                    edges[edge_id] = {
+                        "id": edge_id,
+                        "source": parent_name,
+                        "target": table_name,
+                        "type": "DEPENDS_ON",
+                    }
+    return {
+        "nodes": sorted(nodes.values(), key=lambda item: item["id"]),
+        "edges": sorted(edges.values(), key=lambda item: item["id"]),
+    }

@@ -48,6 +48,17 @@ def get_graph(
     }
 
 
+@app.get("/api/graph/all")
+def get_full_graph() -> dict:
+    graph = engine.query_full_graph()
+    return {
+        "active": "ALL",
+        "mode": "all",
+        "depth": None,
+        "graph": graph,
+    }
+
+
 @app.get("/api/immediate")
 def get_immediate(name: str = Query(..., min_length=1)) -> dict:
     if not engine.table_exists(name):

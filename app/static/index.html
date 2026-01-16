@@ -24,6 +24,13 @@
       <section class="sidebar">
         <div class="panel">
           <h2>Controls</h2>
+          <div class="field">
+            <span>Graph scope</span>
+            <div class="radio-group">
+              <label><input type="radio" name="scope" value="focused" checked /> Focused</label>
+              <label><input type="radio" name="scope" value="all" /> All tables</label>
+            </div>
+          </div>
           <label class="field">
             <span>Active table</span>
             <select id="table-select"></select>
@@ -43,6 +50,15 @@
             <input id="depth-input" type="range" min="1" max="20" value="20" />
             <span id="depth-value">20</span>
           </label>
+        </div>
+
+        <div class="panel">
+          <h2>Focus tables</h2>
+          <label class="field">
+            <span>Filter</span>
+            <input id="table-filter" type="text" placeholder="Search tables..." />
+          </label>
+          <div id="focus-table-list" class="checkbox-list"></div>
         </div>
 
         <div class="panel">
@@ -74,6 +90,54 @@
 
       <section class="graph-panel">
         <div id="cy"></div>
+        <div id="metrics-panel" class="metrics-panel">
+          <div class="metrics-header">
+            <div>
+              <h2>Prioritization & Metrics</h2>
+              <p>Rank focus tables by downstream impact and dependency complexity.</p>
+            </div>
+            <button id="metrics-toggle" class="secondary">Collapse</button>
+          </div>
+          <div id="metrics-body" class="metrics-body">
+            <div class="metrics-controls">
+              <label class="field">
+                <span>Sort by</span>
+                <select id="metrics-sort">
+                  <option value="priority">Priority score</option>
+                  <option value="downstream">Downstream impact</option>
+                  <option value="upstream">Upstream dependencies</option>
+                  <option value="df-parents">d_ + f_ parents</option>
+                </select>
+              </label>
+              <div class="metrics-summary">
+                <div>
+                  <span class="label">Selected</span>
+                  <strong id="selected-count">0</strong>
+                </div>
+                <div>
+                  <span class="label">Starting points</span>
+                  <strong id="starting-count">0</strong>
+                </div>
+              </div>
+            </div>
+            <div class="starting-points">
+              <h3>Recommended starting tables</h3>
+              <ul id="starting-list" class="list"></ul>
+            </div>
+            <div class="metrics-table">
+              <div class="metrics-row metrics-header-row">
+                <span>Table</span>
+                <span>Priority</span>
+                <span>Downstream</span>
+                <span>Upstream</span>
+                <span>d_ parents</span>
+                <span>f_ parents</span>
+                <span>d_ + f_</span>
+              </div>
+              <div id="metrics-rows" class="metrics-rows"></div>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
 
