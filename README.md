@@ -35,6 +35,11 @@ pip3 install -r requirements.txt
 PYTHONPATH=. python3 graph/seed.py
 ```
 
+### 4a) Seed Wave 2 dependencies (from `dependency_data/wave2_dependencies.txt`)
+```bash
+PYTHONPATH=. python3 graph/seed_wave2.py --path dependency_data/wave2_dependencies.txt
+```
+
 ### 5) Run the app (v2)
 ```bash
 PYTHONPATH=. python3 -m uvicorn app.web_app:app --reload --port 8000
