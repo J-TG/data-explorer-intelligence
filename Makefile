@@ -20,7 +20,7 @@ install:
 	pip3 install -r requirements.txt
 
 seed:
-	PYTHONPATH=. python3 graph/seed.py
+	PYTHONPATH=. python3 graph/seed_wave2.py --path dependency_data/wave2_dependencies.txt
 
 run:
 	@$(MAKE) kill-port
