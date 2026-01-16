@@ -16,6 +16,7 @@ const metricsToggle = document.getElementById("metrics-toggle");
 const metricsBody = document.getElementById("metrics-body");
 const metricsRows = document.getElementById("metrics-rows");
 const metricsSort = document.getElementById("metrics-sort");
+const metricsSortButtons = document.querySelectorAll(".metrics-sort-button");
 const selectedCount = document.getElementById("selected-count");
 const startingCount = document.getElementById("starting-count");
 const startingList = document.getElementById("starting-list");
@@ -31,6 +32,7 @@ let currentScope = "focused";
 let graphData = null;
 let tableNames = [];
 const selectedTables = new Set();
+let currentMetricsSort = metricsSort.value;
 
 const dagreLayout = {
   name: "dagre",
@@ -263,7 +265,13 @@ function refresh() {
   const name = tableSelect.value;
   const depth = Number(depthInput.value);
   depthValue.textContent = depth;
-  if (currentScope === "all") {
+  if (name === "ALL") {
+    setScope("all");
+    updateGraphAll().then(() => {
+      renderList(upstreamList, []);
+      renderList(downstreamList, []);
+    });
+  } else if (currentScope === "all") {
     updateGraphAll().then(() => updateImmediate(name));
   } else {
     updateGraph(name, currentMode, depth).then(() => updateImmediate(name));
@@ -325,17 +333,27 @@ function setupModeListeners() {
 function setupScopeListeners() {
   scopeRadios.forEach((radio) => {
     radio.addEventListener("change", (event) => {
-      currentScope = event.target.value;
-      const disableControls = currentScope === "all";
-      document
-        .querySelectorAll('input[name="mode"]')
-        .forEach((input) => {
-          input.disabled = disableControls;
-        });
-      depthInput.disabled = disableControls;
+      setScope(event.target.value);
       refresh();
     });
   });
+}
+
+function setScope(scopeValue) {
+  currentScope = scopeValue;
+  const disableControls = currentScope === "all";
+  document.querySelectorAll('input[name="mode"]').forEach((input) => {
+    input.disabled = disableControls;
+  });
+  depthInput.disabled = disableControls;
+  scopeRadios.forEach((radio) => {
+    radio.checked = radio.value === currentScope;
+  });
+  if (currentScope === "all") {
+    tableSelect.value = "ALL";
+  } else if (tableSelect.value === "ALL" && tableNames.length) {
+    tableSelect.value = tableNames[0];
+  }
 }
 
 function setupSeedButton() {
@@ -515,15 +533,17 @@ function fetchTables() {
       setStatus("");
       tableSelect.innerHTML = "";
       tableNames = data.tables;
-      data.tables.forEach((name, index) => {
+      const allOption = document.createElement("option");
+      allOption.value = "ALL";
+      allOption.textContent = "ALL";
+      tableSelect.appendChild(allOption);
+      data.tables.forEach((name) => {
         const option = document.createElement("option");
         option.value = name;
         option.textContent = name;
         tableSelect.appendChild(option);
-        if (index === 0) {
-          tableSelect.value = name;
-        }
       });
+      tableSelect.value = data.tables[0] || "ALL";
       renderFocusTableList();
       refresh();
     })
@@ -651,13 +671,22 @@ function updateMetrics() {
   startingCount.textContent = starting.length;
   renderList(startingList, starting);
 
-  const sortBy = metricsSort.value;
+  const sortBy = currentMetricsSort;
   const sortValue = (metric) => {
+    if (sortBy === "table") {
+      return metric.name.toLowerCase();
+    }
     if (sortBy === "downstream") {
       return metric.downstreamCount;
     }
     if (sortBy === "upstream") {
       return metric.upstreamCount;
+    }
+    if (sortBy === "d-parents") {
+      return metric.dParents;
+    }
+    if (sortBy === "f-parents") {
+      return metric.fParents;
     }
     if (sortBy === "df-parents") {
       return metric.dfParents;
@@ -665,7 +694,11 @@ function updateMetrics() {
     return metric.priorityScore;
   };
 
-  metrics.sort((a, b) => sortValue(b) - sortValue(a));
+  if (sortBy === "table") {
+    metrics.sort((a, b) => sortValue(a).localeCompare(sortValue(b)));
+  } else {
+    metrics.sort((a, b) => sortValue(b) - sortValue(a));
+  }
   metricsRows.innerHTML = "";
   metrics.forEach((metric) => {
     const row = document.createElement("div");
@@ -681,6 +714,16 @@ function updateMetrics() {
     `;
     metricsRows.appendChild(row);
   });
+
+  metricsSortButtons.forEach((button) => {
+    const isActive = button.dataset.sort === sortBy;
+    let ariaSort = "none";
+    if (isActive) {
+      ariaSort = sortBy === "table" ? "ascending" : "descending";
+    }
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-sort", ariaSort);
+  });
 }
 
 metricsToggle.addEventListener("click", () => {
@@ -688,13 +731,31 @@ metricsToggle.addEventListener("click", () => {
   metricsToggle.textContent = isCollapsed ? "Expand" : "Collapse";
 });
 
-metricsSort.addEventListener("change", updateMetrics);
+metricsSort.addEventListener("change", () => {
+  currentMetricsSort = metricsSort.value;
+  updateMetrics();
+});
+
+metricsSortButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    currentMetricsSort = button.dataset.sort;
+    metricsSort.value = currentMetricsSort;
+    updateMetrics();
+  });
+});
 
 tableFilter.addEventListener("input", renderFocusTableList);
 
 depthInput.addEventListener("input", refresh);
 
-tableSelect.addEventListener("change", refresh);
+tableSelect.addEventListener("change", () => {
+  if (tableSelect.value === "ALL") {
+    setScope("all");
+  } else if (currentScope === "all") {
+    setScope("focused");
+  }
+  refresh();
+});
 
 setupModeListeners();
 setupScopeListeners();

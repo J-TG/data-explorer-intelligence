@@ -103,9 +103,12 @@
               <label class="field">
                 <span>Sort by</span>
                 <select id="metrics-sort">
+                  <option value="table">Table name</option>
                   <option value="priority">Priority score</option>
                   <option value="downstream">Downstream impact</option>
                   <option value="upstream">Upstream dependencies</option>
+                  <option value="d-parents">d_ parents</option>
+                  <option value="f-parents">f_ parents</option>
                   <option value="df-parents">d_ + f_ parents</option>
                 </select>
               </label>
@@ -126,13 +129,13 @@
             </div>
             <div class="metrics-table">
               <div class="metrics-row metrics-header-row">
-                <span>Table</span>
-                <span>Priority</span>
-                <span>Downstream</span>
-                <span>Upstream</span>
-                <span>d_ parents</span>
-                <span>f_ parents</span>
-                <span>d_ + f_</span>
+                <button class="metrics-sort-button" data-sort="table" type="button">Table</button>
+                <button class="metrics-sort-button" data-sort="priority" type="button">Priority</button>
+                <button class="metrics-sort-button" data-sort="downstream" type="button">Downstream</button>
+                <button class="metrics-sort-button" data-sort="upstream" type="button">Upstream</button>
+                <button class="metrics-sort-button" data-sort="d-parents" type="button">d_ parents</button>
+                <button class="metrics-sort-button" data-sort="f-parents" type="button">f_ parents</button>
+                <button class="metrics-sort-button" data-sort="df-parents" type="button">d_ + f_</button>
               </div>
               <div id="metrics-rows" class="metrics-rows"></div>
             </div>
