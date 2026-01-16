@@ -96,8 +96,8 @@ def paths_to_graph(paths: Iterable[object]) -> Dict[str, List[Dict[str, str]]]:
         for index, rel in enumerate(path.relationships):
             start_node = path.nodes[index]
             end_node = path.nodes[index + 1]
-            source = start_node.get("name")
-            target = end_node.get("name")
+            source = end_node.get("name")
+            target = start_node.get("name")
             if not source or not target:
                 continue
             edge_id = f"{source}__DEPENDS_ON__{target}"
